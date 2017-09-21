@@ -171,10 +171,10 @@ contract CryptoGripTokenSale is ContributorApprover {
         admin = _admin;
         gripWallet = _gripWallet;
 
-        token = new CryptoGripInitiative(_totalTokenSupply, _publicSaleStartTime, _publicSaleEndTime, _admin);
+        token = new CryptoGripInitiative(_totalTokenSupply * 10 ** 18, _publicSaleStartTime, _publicSaleEndTime, _admin);
 
         // transfer preminted tokens to company wallet
-        token.transfer(gripWallet, _premintedTokenSupply);
+        token.transfer(gripWallet, _premintedTokenSupply * 10 ** 18);
     }
 
     function setHaltSale(bool halt) {
