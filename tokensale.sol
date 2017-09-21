@@ -111,7 +111,7 @@ contract ContributorApprover {
         require(openSaleStartTime < openSaleEndTime);
     }
 
-    function eligible(address contributor, uint amountInWei) constant returns (uint) {
+    function eligible(uint amountInWei) constant returns (uint) {
         if (now >= openSaleEndTime) return 0;
 
 
@@ -124,7 +124,7 @@ contract ContributorApprover {
     }
 
     function eligibleTestAndIncrement(address contributor, uint amountInWei) internal returns (uint) {
-        uint result = eligible(contributor, amountInWei);
+        uint result = eligible(amountInWei);
         participated[contributor] = participated[contributor].add(result);
 
         return result;
@@ -171,9 +171,7 @@ contract CryptoGripTokenSale is ContributorApprover {
         admin = _admin;
         gripWallet = _gripWallet;
 
-        token = new CryptoGripInitiative(_totalTokenSupply,
-        _publicSaleEndTime,
-        _admin);
+        token = new CryptoGripInitiative(_totalTokenSupply, _publicSaleStartTime, _publicSaleEndTime, _admin);
 
         // transfer preminted tokens to company wallet
         token.transfer(gripWallet, _premintedTokenSupply);
