@@ -4,6 +4,11 @@ pragma solidity ^0.4.13;
 import 'http://github.com/OpenZeppelin/zeppelin-solidity/contracts/token/StandardToken.sol';
 import 'http://github.com/OpenZeppelin/zeppelin-solidity/contracts/ownership/Ownable.sol';
 
+// TODO: Add 150 ETH cap for Pre-ICO and 850 ETH cap for ICO
+// TODO: Add dynamic tokensPerETH depending on pre-ICO/ICO
+// TODO: Add success/fail depending on ETH gathered upon end of the tokensale
+// TODO: Add transfer unused tokens to other wallet
+
 
 /////////////////////////////////////////////////////////
 //////////////// Token contract start////////////////////
