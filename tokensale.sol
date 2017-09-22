@@ -7,7 +7,6 @@ import 'http://github.com/OpenZeppelin/zeppelin-solidity/contracts/ownership/Own
 // TODO: Add 150 ETH cap for Pre-ICO and 850 ETH cap for ICO
 // TODO: Add dynamic tokensPerETH depending on pre-ICO/ICO
 // TODO: Add success/fail depending on ETH gathered upon end of the tokensale
-// TODO: Add transfer unused tokens to other wallet
 
 
 /////////////////////////////////////////////////////////
@@ -166,6 +165,8 @@ contract CryptoGripTokenSale is ContributorApprover {
     address _gripWallet,
     uint _totalTokenSupply,
     uint _premintedTokenSupply,
+    address _unusedTokenWallet,
+    uint _unusedTokenSupply,
     uint _publicSaleStartTime,
     uint _publicSaleEndTime)
 
@@ -180,6 +181,9 @@ contract CryptoGripTokenSale is ContributorApprover {
 
         // transfer preminted tokens to company wallet
         token.transfer(gripWallet, _premintedTokenSupply * 10 ** 18);
+
+        // transfer tokens that will be used later on to separate wallet
+        token.transfer(_unusedTokenWallet, _unusedTokenSupply * 10 ** 18);
     }
 
     function setHaltSale(bool halt) {
