@@ -4,6 +4,7 @@ pragma solidity ^0.4.13;
 import 'http://github.com/OpenZeppelin/zeppelin-solidity/contracts/token/StandardToken.sol';
 import 'http://github.com/OpenZeppelin/zeppelin-solidity/contracts/ownership/Ownable.sol';
 
+
 // TODO: Add 150 ETH cap for Pre-ICO and 850 ETH cap for ICO
 // TODO: Add dynamic tokensPerETH depending on pre-ICO/ICO
 // TODO: Add success/fail depending on ETH gathered upon end of the tokensale
@@ -78,15 +79,51 @@ contract CryptoGripInitiative is StandardToken, Ownable {
         return true;
     }
 
-    // save some gas by making only one contract call
-    function burnFrom(address _from, uint256 _value) onlyWhenTransferEnabled
-    returns (bool) {
-        assert(transferFrom(_from, msg.sender, _value));
-        return burn(_value);
-    }
+    //    // save some gas by making only one contract call
+    //    function burnFrom(address _from, uint256 _value) onlyWhenTransferEnabled
+    //    returns (bool) {
+    //        assert(transferFrom(_from, msg.sender, _value));
+    //        return burn(_value);
+    //    }
 
     function emergencyERC20Drain(ERC20 token, uint amount) onlyOwner {
         token.transfer(owner, amount);
+    }
+}
+
+
+/////////////////////////////////////////////////////////
+/////////////// Whitelist contract start/////////////////
+/////////////////////////////////////////////////////////
+
+
+contract Whitelist {
+    address public owner;
+
+    address public sale;
+
+    mapping (address => uint) public accepted;
+
+    function Whitelist(address _owner, address _sale) {
+        owner = _owner;
+        sale = _sale;
+    }
+
+    function accept(address a, uint amountInWei) {
+        assert(msg.sender == owner || msg.sender == sale);
+
+        accepted[a] = amountInWei;
+    }
+
+    function setSale(address sale_) {
+        assert(msg.sender == owner);
+
+        sale = sale_;
+    }
+
+    function getCap(address _user) constant returns (uint) {
+        uint cap = accepted[_user];
+        return cap;
     }
 }
 
@@ -96,8 +133,15 @@ contract CryptoGripInitiative is StandardToken, Ownable {
 /////////////////////////////////////////////////////////
 
 contract ContributorApprover {
+    Whitelist public list;
 
     mapping (address => uint)    public participated;
+
+    uint public presaleStartTime;
+
+    uint public remainingPresaleCap;
+
+    uint public remainingPublicSaleCap;
 
     uint                      public openSaleStartTime;
 
@@ -107,29 +151,85 @@ contract ContributorApprover {
 
 
     function ContributorApprover(
+    Whitelist _whitelistContract,
+    uint preIcoCap,
+    uint IcoCap,
+    uint _presaleStartTime,
     uint _openSaleStartTime,
     uint _openSaleEndTime) {
+        list = _whitelistContract;
         openSaleStartTime = _openSaleStartTime;
         openSaleEndTime = _openSaleEndTime;
+        presaleStartTime = _presaleStartTime;
+        remainingPresaleCap = preIcoCap;
+        remainingPublicSaleCap = IcoCap;
 
+        //    Check that presale is earlier than opensale
+        require(presaleStartTime < openSaleStartTime);
+        //    Check that open sale start is earlier than end
         require(openSaleStartTime < openSaleEndTime);
     }
 
-    function eligible(uint amountInWei) constant returns (uint) {
+    // this is a seperate function so user could query it before crowdsale starts
+    function contributorCap(address contributor) constant returns (uint) {
+        return list.getCap(contributor);
+    }
+
+    function eligible(address contributor, uint amountInWei) constant returns (uint) {
+        //        Presale not started yet
+        if (now < presaleStartTime) return 0;
+        //    Both presale and public sale have ended
         if (now >= openSaleEndTime) return 0;
 
-
+        //        Presale
         if (now < openSaleStartTime) {
-            return 0;
+            //        Presale cap limit reached
+            if (remainingPresaleCap <= 0) {
+                return 0;
+            }
+            //            Get initial cap
+            uint cap = contributorCap(contributor);
+            // Account for already invested amount
+            uint remainedCap = cap.sub(participated[contributor]);
+            //        Presale cap almost reached
+            if (remainedCap > remainingPresaleCap) {
+                remainedCap = remainingPresaleCap;
+            }
+            //            Remaining cap is bigger than contribution
+            if (remainedCap > amountInWei) return amountInWei;
+            //            Remaining cap is smaller than contribution
+            else return remainedCap;
         }
+        //        Public sale
         else {
-            return amountInWei;
+            //           Public sale  cap limit reached
+            if (remainingPublicSaleCap <= 0) {
+                return 0;
+            }
+            //            Public sale cap almost reached
+            if (amountInWei > remainingPublicSaleCap) {
+                return remainingPublicSaleCap;
+            }
+            //            Public sale cap is bigger than contribution
+            else {
+                return amountInWei;
+            }
         }
     }
 
     function eligibleTestAndIncrement(address contributor, uint amountInWei) internal returns (uint) {
-        uint result = eligible(amountInWei);
+        uint result = eligible(contributor, amountInWei);
         participated[contributor] = participated[contributor].add(result);
+        //    Presale
+        if (now < openSaleStartTime) {
+            //        Decrement presale cap
+            remainingPresaleCap = remainingPresaleCap.sub(result);
+        }
+        //        Publicsale
+        else {
+            //        Decrement publicsale cap
+            remainingPublicSaleCap = remainingPublicSaleCap.sub(result);
+        }
 
         return result;
     }
@@ -139,7 +239,7 @@ contract ContributorApprover {
     }
 
     function saleStarted() constant returns (bool) {
-        return now >= openSaleStartTime;
+        return now >= presaleStartTime;
     }
 }
 
@@ -163,21 +263,28 @@ contract CryptoGripTokenSale is ContributorApprover {
 
     function CryptoGripTokenSale(address _admin,
     address _gripWallet,
+    Whitelist _whiteListContract,
     uint _totalTokenSupply,
     uint _premintedTokenSupply,
     address _unusedTokenWallet,
     uint _unusedTokenSupply,
+    uint _presaleStartTime,
     uint _publicSaleStartTime,
-    uint _publicSaleEndTime)
+    uint _publicSaleEndTime,
+    uint _presaleCap,
+    uint _publicSaleCap)
 
-    ContributorApprover(
+    ContributorApprover(_whiteListContract,
+    _presaleCap,
+    _publicSaleCap,
+    _presaleStartTime,
     _publicSaleStartTime,
     _publicSaleEndTime)
     {
         admin = _admin;
         gripWallet = _gripWallet;
 
-        token = new CryptoGripInitiative(_totalTokenSupply * 10 ** 18, _publicSaleStartTime, _publicSaleEndTime, _admin);
+        token = new CryptoGripInitiative(_totalTokenSupply * 10 ** 18, _presaleStartTime, _publicSaleEndTime, _admin);
 
         // transfer preminted tokens to company wallet
         token.transfer(gripWallet, _premintedTokenSupply * 10 ** 18);
