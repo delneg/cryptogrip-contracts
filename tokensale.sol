@@ -112,7 +112,7 @@ contract Whitelist {
     function accept(address a, uint amountInWei) {
         assert(msg.sender == owner || msg.sender == sale);
 
-        accepted[a] = amountInWei;
+        accepted[a] = amountInWei * 10 ** 18;
     }
 
     function setSale(address sale_) {
@@ -161,8 +161,8 @@ contract ContributorApprover {
         openSaleStartTime = _openSaleStartTime;
         openSaleEndTime = _openSaleEndTime;
         presaleStartTime = _presaleStartTime;
-        remainingPresaleCap = preIcoCap;
-        remainingPublicSaleCap = IcoCap;
+        remainingPresaleCap = preIcoCap * 10 ** 18;
+        remainingPublicSaleCap = IcoCap * 10 ** 18;
 
         //    Check that presale is earlier than opensale
         require(presaleStartTime < openSaleStartTime);
