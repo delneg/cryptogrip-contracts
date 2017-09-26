@@ -5,11 +5,6 @@ import 'http://github.com/OpenZeppelin/zeppelin-solidity/contracts/token/Standar
 import 'http://github.com/OpenZeppelin/zeppelin-solidity/contracts/ownership/Ownable.sol';
 
 
-// TODO: Add 150 ETH cap for Pre-ICO and 850 ETH cap for ICO
-// TODO: Add dynamic tokensPerETH depending on pre-ICO/ICO
-// TODO: Add success/fail depending on ETH gathered upon end of the tokensale
-
-
 /////////////////////////////////////////////////////////
 //////////////// Token contract start////////////////////
 /////////////////////////////////////////////////////////
@@ -249,7 +244,9 @@ contract ContributorApprover {
 /////////////////////////////////////////////////////////
 
 contract CryptoGripTokenSale is ContributorApprover {
-    uint    public  constant tokensPerEth = 290;
+    uint    public  constant tokensPerEthPresale = 1055;
+
+    uint    public  constant tokensPerEthPublicSale = 755;
 
     address             public admin;
 
@@ -323,7 +320,15 @@ contract CryptoGripTokenSale is ContributorApprover {
         // send payment to wallet
         sendETHToMultiSig(weiPayment);
         raisedWei = raisedWei.add(weiPayment);
-        uint recievedTokens = weiPayment.mul(tokensPerEth);
+
+        uint recievedTokens = 0;
+
+        if (now < openSaleStartTime) {
+            recievedTokens = weiPayment.mul(tokensPerEthPresale);
+        }
+        else {
+            recievedTokens = weiPayment.mul(tokensPerEthPublicSale);
+        }
 
         assert(token.transfer(recipient, recievedTokens));
 
