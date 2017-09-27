@@ -236,6 +236,10 @@ contract ContributorApprover {
     function saleStarted() constant returns (bool) {
         return now >= presaleStartTime;
     }
+
+    function publicSaleStarted() constant returns (bool) {
+        return now >= openSaleStartTime;
+    }
 }
 
 
